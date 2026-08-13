@@ -11,25 +11,7 @@ import {
   planeOrientationFromNormal,
   planeStrikeVector,
 } from '../src';
-
-const closeTo = (actual: number, expected: number) => expect(actual).toBeCloseTo(expected, 12);
-const expectVectorCloseTo = (
-  actual: { x: number; y: number; z: number },
-  expected: { x: number; y: number; z: number },
-) => {
-  closeTo(actual.x, expected.x);
-  closeTo(actual.y, expected.y);
-  closeTo(actual.z, expected.z);
-};
-const dot = (a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }) =>
-  a.x * b.x + a.y * b.y + a.z * b.z;
-const cross = (a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }) => ({
-  x: a.y * b.z - a.z * b.y,
-  y: a.z * b.x - a.x * b.z,
-  z: a.x * b.y - a.y * b.x,
-});
-const length = (vector: { x: number; y: number; z: number }) =>
-  Math.hypot(vector.x, vector.y, vector.z);
+import { closeTo, cross, dot, expectVectorCloseTo, length } from './helpers';
 
 describe('ENU coordinate contract', () => {
   it('defines East, North, and Up basis vectors', () => {
