@@ -1,0 +1,15 @@
+# Architecture
+
+## Boundaries
+
+- `apps/web` is the Next.js presentation shell and owns browser integration only.
+- `packages/domain` defines portable domain vocabulary; the remaining package directories reserve independent scientific capabilities.
+- `packages/ui` contains reusable React presentation components only.
+- `crates/geokinematics-core` owns performance-sensitive, deterministic computation exposed to the browser through WebAssembly.
+- Packages never import applications. Scientific/domain code never imports React.
+
+## WebAssembly boundary
+
+Rust exposes an intentionally tiny `boundary_probe` function through `wasm-bindgen`. The browser adapter in `apps/web/src/lib/wasm/core.ts` is the only application-facing contract. `pnpm wasm:build` regenerates its implementation using `wasm-pack`; generated output is not committed.
+
+No service, database, or server-side scientific computation is part of this architecture.
