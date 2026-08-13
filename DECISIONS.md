@@ -8,3 +8,4 @@ The current implementation follows the accepted records in `docs/decisions`:
 - Local-first operation without a backend in this phase.
 - A strict domain/UI separation.
 - Deterministic calculations as a foundational property.
+- ENU coordinate and orientation conventions for framework-independent geometry.

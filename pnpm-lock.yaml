@@ -60,7 +60,11 @@ importers:
 
   packages/domain: {}
 
-  packages/geometry: {}
+  packages/geometry:
+    dependencies:
+      '@geokinematics/domain':
+        specifier: workspace:*
+        version: link:../domain
 
   packages/kinematics: {}
 

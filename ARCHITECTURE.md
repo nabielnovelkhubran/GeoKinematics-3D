@@ -8,6 +8,12 @@
 - `crates/geokinematics-core` owns performance-sensitive, deterministic computation exposed to the browser through WebAssembly.
 - Packages never import applications. Scientific/domain code never imports React.
 
+## Coordinate and orientation contract
+
+`packages/domain` owns framework-independent coordinate/orientation types and
+their units. `packages/geometry` owns pure ENU transforms and deterministic
+normal canonicalization. Neither package depends on React, Three.js, or an app.
+
 ## WebAssembly boundary
 
 Rust exposes an intentionally tiny `boundary_probe` function through `wasm-bindgen`. The browser adapter in `apps/web/src/lib/wasm/core.ts` is the only application-facing contract. `pnpm wasm:build` regenerates its implementation using `wasm-pack`; generated output is not committed.
