@@ -23,3 +23,20 @@ export interface PlaneOrientation {
   readonly dipDirection: Degrees;
   readonly dip: Degrees;
 }
+
+/**
+ * The orientation of a geological line, expressed as its downward plunge
+ * and clockwise trend from North. Both values are decimal degrees.
+ */
+export interface LineOrientation {
+  readonly trend: Degrees;
+  readonly plunge: Degrees;
+}
+
+/**
+ * A projected point on a stereonet, typically representing a unit-radius disk.
+ */
+export interface StereonetPoint {
+  readonly x: number;
+  readonly y: number;
+}

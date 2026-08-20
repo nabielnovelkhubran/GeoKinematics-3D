@@ -4,3 +4,4 @@ export * from './tolerance';
 export * from './angle';
 export * from './vector';
 export * from './plane';
+export * from './stereonet';
