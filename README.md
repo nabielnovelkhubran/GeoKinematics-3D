@@ -324,7 +324,7 @@ docs/decisions/ADR-008-stereonet-projection.md
 
 ## Roadmap
 
-### Phase 1 — Geological geometry
+### Phase 1 | Geological geometry
 
 * [x] Coordinate and orientation contract
 * [x] Vector mathematics
@@ -336,7 +336,7 @@ docs/decisions/ADR-008-stereonet-projection.md
 * [ ] Stereonet visualization
 * [ ] Interactive stereonet controls
 
-### Phase 2 — Kinematic analysis
+### Phase 2 | Kinematic analysis
 
 Planned analysis includes:
 
@@ -348,7 +348,7 @@ Planned analysis includes:
 * [ ] Daylighting checks
 * [ ] Critical-plane identification
 
-### Phase 3 — 3D geological workspace
+### Phase 3 | 3D geological workspace
 
 * [ ] Slope geometry
 * [ ] Geological surfaces
@@ -357,7 +357,7 @@ Planned analysis includes:
 * [ ] 3D orientation visualization
 * [ ] Interactive model inspection
 
-### Phase 4 — Engineering analysis
+### Phase 4 | Engineering analysis
 
 * [ ] Limit-equilibrium methods
 * [ ] Factor-of-safety calculations
