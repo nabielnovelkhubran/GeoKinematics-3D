@@ -10,16 +10,16 @@ The project is currently focused on building and testing the mathematical and so
 
 Implemented so far:
 
-* East-North-Up (ENU) coordinate convention
-* Geological line and plane orientations
-* 3D vector operations
-* Plane geometry and normal handling
-* Plane intersection calculations
-* Wulff lower-hemisphere equal-angle projection
-* Lineation and plane-pole projection
-* Plane great-circle generation
-* Rust/WASM computation boundary
-* React/SVG stereonet visualization foundation
+- East-North-Up (ENU) coordinate convention
+- Geological line and plane orientations
+- 3D vector operations
+- Plane geometry and normal handling
+- Plane intersection calculations
+- Wulff lower-hemisphere equal-angle projection
+- Lineation and plane-pole projection
+- Plane great-circle generation
+- Rust/WASM computation boundary
+- React/SVG stereonet visualization foundation
 
 Higher-level kinematic analysis is not implemented yet.
 
@@ -86,12 +86,12 @@ Phase 1C implements a lower-hemisphere equal-angle stereographic projection (Wul
 
 The geometry package currently provides:
 
-* Line orientation normalization
-* Line orientation ↔ Cartesian vector conversion
-* Wulff projection
-* Wulff inverse projection
-* Plane-pole projection
-* Plane great-circle generation
+- Line orientation normalization
+- Line orientation ↔ Cartesian vector conversion
+- Wulff projection
+- Wulff inverse projection
+- Plane-pole projection
+- Plane great-circle generation
 
 Projected points use normalized stereonet coordinates:
 
@@ -178,15 +178,15 @@ Phase 1D introduces the first reusable UI representation of the stereonet.
 
 The component is based on SVG and currently supports:
 
-* Stereonet boundary
-* Cardinal labels
-* Grid markers
-* Lineations
-* Plane poles
-* Great circles
-* Configurable grid visibility
-* Configurable label visibility
-* Configurable SVG size
+- Stereonet boundary
+- Cardinal labels
+- Grid markers
+- Lineations
+- Plane poles
+- Great circles
+- Configurable grid visibility
+- Configurable label visibility
+- Configurable SVG size
 
 The component accepts already-projected stereonet coordinates and performs only the final display transform:
 
@@ -205,17 +205,17 @@ The project uses automated checks across the TypeScript, React, Rust, and browse
 
 Current checks include:
 
-* Vitest unit tests
-* React Testing Library
-* TypeScript type checking
-* ESLint
-* Prettier
-* Next.js build
-* Playwright E2E tests
-* Rust tests
-* Rust formatting
-* Rust linting
-* WASM builds
+- Vitest unit tests
+- React Testing Library
+- TypeScript type checking
+- ESLint
+- Prettier
+- Next.js build
+- Playwright E2E tests
+- Rust tests
+- Rust formatting
+- Rust linting
+- WASM builds
 
 Run the complete verification pipeline with:
 
@@ -243,12 +243,12 @@ The stereonet geometry tests cover projection, inverse projection, poles, great 
 
 ### Prerequisites
 
-* Node.js 22+
-* pnpm 11
-* Rust stable
-* `cargo`
-* `rustc`
-* `rustup`
+- Node.js 22+
+- pnpm 11
+- Rust stable
+- `cargo`
+- `rustc`
+- `rustup`
 
 Install the WebAssembly target:
 
@@ -310,9 +310,9 @@ pnpm verify
 
 ## Repository documentation
 
-* `ARCHITECTURE.md` — repository architecture and package boundaries
-* `CONTRIBUTING.md` — contribution and development workflow
-* `docs/decisions/` — architecture decisions and technical conventions
+- `ARCHITECTURE.md` — repository architecture and package boundaries
+- `CONTRIBUTING.md` — contribution and development workflow
+- `docs/decisions/` — architecture decisions and technical conventions
 
 Relevant current ADR:
 
@@ -326,44 +326,44 @@ docs/decisions/ADR-008-stereonet-projection.md
 
 ### Phase 1 | Geological geometry
 
-* [x] Coordinate and orientation contract
-* [x] Vector mathematics
-* [x] Plane mathematics
-* [x] Canonical plane normals
-* [x] Wulff projection
-* [x] Line and pole projection
-* [x] Great-circle generation
-* [ ] Stereonet visualization
-* [ ] Interactive stereonet controls
+- [x] Coordinate and orientation contract
+- [x] Vector mathematics
+- [x] Plane mathematics
+- [x] Canonical plane normals
+- [x] Wulff projection
+- [x] Line and pole projection
+- [x] Great-circle generation
+- [ ] Stereonet visualization
+- [ ] Interactive stereonet controls
 
 ### Phase 2 | Kinematic analysis
 
 Planned analysis includes:
 
-* [ ] Planar sliding
-* [ ] Wedge sliding
-* [ ] Direct toppling
-* [ ] Kinematic admissibility
-* [ ] Friction-angle constraints
-* [ ] Daylighting checks
-* [ ] Critical-plane identification
+- [ ] Planar sliding
+- [ ] Wedge sliding
+- [ ] Direct toppling
+- [ ] Kinematic admissibility
+- [ ] Friction-angle constraints
+- [ ] Daylighting checks
+- [ ] Critical-plane identification
 
 ### Phase 3 | 3D geological workspace
 
-* [ ] Slope geometry
-* [ ] Geological surfaces
-* [ ] Discontinuity sets
-* [ ] Structural measurements
-* [ ] 3D orientation visualization
-* [ ] Interactive model inspection
+- [ ] Slope geometry
+- [ ] Geological surfaces
+- [ ] Discontinuity sets
+- [ ] Structural measurements
+- [ ] 3D orientation visualization
+- [ ] Interactive model inspection
 
 ### Phase 4 | Engineering analysis
 
-* [ ] Limit-equilibrium methods
-* [ ] Factor-of-safety calculations
-* [ ] Parameter sensitivity analysis
-* [ ] Engineering result visualization
-* [ ] Reproducible analysis configurations
+- [ ] Limit-equilibrium methods
+- [ ] Factor-of-safety calculations
+- [ ] Parameter sensitivity analysis
+- [ ] Engineering result visualization
+- [ ] Reproducible analysis configurations
 
 ---
 

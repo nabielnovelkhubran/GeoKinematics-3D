@@ -1,5 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "jsx": "preserve" },
-  "include": ["src"]
+  "compilerOptions": {
+    "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": {
+      "@geokinematics/domain": ["../domain/src/index.ts"]
+    }
+  },
+  "include": ["src", "test"]
 }

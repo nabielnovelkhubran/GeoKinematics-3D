@@ -1,2 +1,2 @@
-/** Reserved for reusable React presentation components. */
-export {};
+export { Stereonet } from './Stereonet';
+export type { StereonetProps } from './Stereonet';
