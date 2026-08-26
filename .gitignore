@@ -8,5 +8,6 @@ test-results/
 apps/web/src/lib/wasm/generated/
 target/
 *.log
+*.tsbuildinfo
 .env*
 !.env.example

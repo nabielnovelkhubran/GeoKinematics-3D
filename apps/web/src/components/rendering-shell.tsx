@@ -10,14 +10,6 @@ export function RenderingShell() {
   const [wasmBoundary, setWasmBoundary] = useState('loading');
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const renderer = new WebGLRenderer({ canvas, antialias: true });
-    const scene = new Scene();
-    scene.background = new Color('#172a38');
-    const camera = new PerspectiveCamera(45, 2, 0.1, 100);
-    camera.position.z = 3;
     let isCurrent = true;
 
     void readCoreBoundary().then(
@@ -29,19 +21,38 @@ export function RenderingShell() {
       },
     );
 
-    const render = () => {
-      const { clientWidth, clientHeight } = canvas;
-      renderer.setSize(clientWidth, clientHeight, false);
-      camera.aspect = clientWidth / clientHeight;
-      camera.updateProjectionMatrix();
-      renderer.render(scene, camera);
-    };
-    render();
-    window.addEventListener('resize', render);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let cleanup: (() => void) | undefined;
+
+    try {
+      const renderer = new WebGLRenderer({ canvas, antialias: true });
+      const scene = new Scene();
+      scene.background = new Color('#172a38');
+      const camera = new PerspectiveCamera(45, 2, 0.1, 100);
+      camera.position.z = 3;
+
+      const render = () => {
+        const { clientWidth, clientHeight } = canvas;
+        renderer.setSize(clientWidth, clientHeight, false);
+        camera.aspect = clientWidth / clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.render(scene, camera);
+      };
+      render();
+      window.addEventListener('resize', render);
+      cleanup = () => {
+        window.removeEventListener('resize', render);
+        renderer.dispose();
+      };
+    } catch {
+      // WebGL context may be unavailable in headless CI environments
+    }
+
     return () => {
       isCurrent = false;
-      window.removeEventListener('resize', render);
-      renderer.dispose();
+      cleanup?.();
     };
   }, []);
 
