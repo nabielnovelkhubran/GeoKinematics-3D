@@ -1,6 +1,6 @@
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, fireEvent, render } from '@testing-library/react';
 import { Stereonet } from '../src/Stereonet';
 import type {
   StereonetCursor,
@@ -374,7 +374,7 @@ describe('gridInterval configuration', () => {
   });
 });
 
-// ── Empty stereonet ────────────────────────────────────────────────────────────
+// ── Empty stereonet ────────────────────────────────────────────────────
 
 describe('empty stereonet', () => {
   it('renders all structural elements with no data points', () => {
@@ -596,5 +596,353 @@ describe('StereonetCursor type contract', () => {
     expect(cursor.y).toBe(-0.3);
     expect(cursor.trend).toBe(120);
     expect(cursor.plunge).toBe(30);
+  });
+});
+
+// ── Phase 1D.4: Pointer Interaction ───────────────────────────────────────────
+
+describe('pointer movement and cursor tracking', () => {
+  const SIZE = 400;
+  // showLabels=false → center=200, radius=190
+
+  it('emits geological cursor data when moving over center (sx=0, sy=0)', () => {
+    const onCursorMove = vi.fn();
+    const { container } = render(
+      <Stereonet size={SIZE} showLabels={false} onCursorMove={onCursorMove} />,
+    );
+    const svg = container.querySelector('svg')!;
+
+    fireEvent.pointerMove(svg, { clientX: 200, clientY: 200 });
+
+    expect(onCursorMove).toHaveBeenCalledTimes(1);
+    const cursor = onCursorMove.mock.calls[0][0];
+    expect(cursor).not.toBeNull();
+    expect(cursor.x).toBeCloseTo(0, 4);
+    expect(cursor.y).toBeCloseTo(0, 4);
+    expect(cursor.trend).toBeCloseTo(0, 4);
+    expect(cursor.plunge).toBeCloseTo(90, 4);
+  });
+
+  it('emits geological cursor data for cardinal points inside the stereonet', () => {
+    const onCursorMove = vi.fn();
+    const { container } = render(
+      <Stereonet size={SIZE} showLabels={false} onCursorMove={onCursorMove} />,
+    );
+    const svg = container.querySelector('svg')!;
+
+    // North: sx = 0, sy = 1 -> svgX = 200, svgY = 10 -> trend = 0, plunge = 0
+    fireEvent.pointerMove(svg, { clientX: 200, clientY: 10 });
+    let cursor = onCursorMove.mock.calls[0][0];
+    expect(cursor.trend).toBeCloseTo(0, 2);
+    expect(cursor.plunge).toBeCloseTo(0, 2);
+
+    // East: sx = 1, sy = 0 -> svgX = 390, svgY = 200 -> trend = 90, plunge = 0
+    fireEvent.pointerMove(svg, { clientX: 390, clientY: 200 });
+    cursor = onCursorMove.mock.calls[1][0];
+    expect(cursor.trend).toBeCloseTo(90, 2);
+    expect(cursor.plunge).toBeCloseTo(0, 2);
+
+    // South: sx = 0, sy = -1 -> svgX = 200, svgY = 390 -> trend = 180, plunge = 0
+    fireEvent.pointerMove(svg, { clientX: 200, clientY: 390 });
+    cursor = onCursorMove.mock.calls[2][0];
+    expect(cursor.trend).toBeCloseTo(180, 2);
+    expect(cursor.plunge).toBeCloseTo(0, 2);
+
+    // West: sx = -1, sy = 0 -> svgX = 10, svgY = 200 -> trend = 270, plunge = 0
+    fireEvent.pointerMove(svg, { clientX: 10, clientY: 200 });
+    cursor = onCursorMove.mock.calls[3][0];
+    expect(cursor.trend).toBeCloseTo(270, 2);
+    expect(cursor.plunge).toBeCloseTo(0, 2);
+  });
+
+  it('emits null when pointer is outside the primitive circle', () => {
+    const onCursorMove = vi.fn();
+    const { container } = render(
+      <Stereonet size={SIZE} showLabels={false} onCursorMove={onCursorMove} />,
+    );
+    const svg = container.querySelector('svg')!;
+
+    // Top-left corner (svgX=5, svgY=5) is far outside circle radius 190
+    fireEvent.pointerMove(svg, { clientX: 5, clientY: 5 });
+
+    expect(onCursorMove).toHaveBeenCalledWith(null);
+  });
+
+  it('emits null for cursor and hover when pointer leaves the component', () => {
+    const onCursorMove = vi.fn();
+    const onHover = vi.fn();
+    const { container } = render(
+      <Stereonet size={SIZE} showLabels={false} onCursorMove={onCursorMove} onHover={onHover} />,
+    );
+    const svg = container.querySelector('svg')!;
+
+    fireEvent.pointerLeave(svg);
+
+    expect(onCursorMove).toHaveBeenCalledWith(null);
+    expect(onHover).toHaveBeenCalledWith(null);
+  });
+});
+
+describe('feature hover detection & priority', () => {
+  const SIZE = 400;
+  // center=200, radius=190
+
+  it('detects hover on pole feature', () => {
+    const onHover = vi.fn();
+    const { container } = render(
+      <Stereonet
+        size={SIZE}
+        showLabels={false}
+        poles={[{ id: 'pole-1', point: { x: 0, y: 0 } }]}
+        onHover={onHover}
+      />,
+    );
+    const svg = container.querySelector('svg')!;
+
+    // Pole at (0, 0) is at SVG (200, 200)
+    fireEvent.pointerMove(svg, { clientX: 202, clientY: 202 });
+
+    expect(onHover).toHaveBeenCalledWith({ type: 'pole', id: 'pole-1' });
+  });
+
+  it('detects hover on lineation feature', () => {
+    const onHover = vi.fn();
+    const { container } = render(
+      <Stereonet
+        size={SIZE}
+        showLabels={false}
+        lineations={[{ id: 'lin-1', point: { x: 0.5, y: 0 } }]}
+        onHover={onHover}
+      />,
+    );
+    const svg = container.querySelector('svg')!;
+
+    // Lineation at (0.5, 0) is at SVG (200 + 0.5*190, 200) = (295, 200)
+    fireEvent.pointerMove(svg, { clientX: 295, clientY: 202 });
+
+    expect(onHover).toHaveBeenCalledWith({ type: 'lineation', id: 'lin-1' });
+  });
+
+  it('detects hover on great-circle path segment', () => {
+    const onHover = vi.fn();
+    const { container } = render(
+      <Stereonet
+        size={SIZE}
+        showLabels={false}
+        greatCircles={[
+          {
+            id: 'gc-1',
+            points: [
+              { x: -1, y: 0 },
+              { x: 0, y: 0 },
+              { x: 1, y: 0 },
+            ],
+          },
+        ]}
+        onHover={onHover}
+      />,
+    );
+    const svg = container.querySelector('svg')!;
+
+    // Great circle horizontal trace is at svgY = 200 from svgX=10 to 390
+    fireEvent.pointerMove(svg, { clientX: 100, clientY: 202 });
+
+    expect(onHover).toHaveBeenCalledWith({ type: 'greatCircle', id: 'gc-1' });
+  });
+
+  it('emits null when moving to an empty region', () => {
+    const onHover = vi.fn();
+    const { container } = render(
+      <Stereonet
+        size={SIZE}
+        showLabels={false}
+        poles={[{ id: 'pole-1', point: { x: 0, y: 0 } }]}
+        onHover={onHover}
+      />,
+    );
+    const svg = container.querySelector('svg')!;
+
+    // Empty region away from center
+    fireEvent.pointerMove(svg, { clientX: 200, clientY: 100 });
+
+    expect(onHover).toHaveBeenCalledWith(null);
+  });
+
+  it('gives point features priority over intersecting great circles', () => {
+    const onHover = vi.fn();
+    const { container } = render(
+      <Stereonet
+        size={SIZE}
+        showLabels={false}
+        poles={[{ id: 'pole-center', point: { x: 0, y: 0 } }]}
+        greatCircles={[
+          {
+            id: 'gc-center',
+            points: [
+              { x: -1, y: 0 },
+              { x: 0, y: 0 },
+              { x: 1, y: 0 },
+            ],
+          },
+        ]}
+        onHover={onHover}
+      />,
+    );
+    const svg = container.querySelector('svg')!;
+
+    // Point directly at center where both pole and great-circle pass
+    fireEvent.pointerMove(svg, { clientX: 200, clientY: 200 });
+
+    expect(onHover).toHaveBeenCalledWith({ type: 'pole', id: 'pole-center' });
+  });
+});
+
+describe('feature selection and controlled visual distinction', () => {
+  const SIZE = 400;
+
+  it('calls onSelectionChange when clicking a pole', () => {
+    const onSelectionChange = vi.fn();
+    const { container } = render(
+      <Stereonet
+        size={SIZE}
+        showLabels={false}
+        poles={[{ id: 'p-target', point: { x: 0, y: 0 } }]}
+        onSelectionChange={onSelectionChange}
+      />,
+    );
+    const svg = container.querySelector('svg')!;
+
+    fireEvent.click(svg, { clientX: 200, clientY: 200 });
+
+    expect(onSelectionChange).toHaveBeenCalledWith({ type: 'pole', id: 'p-target' });
+  });
+
+  it('calls onSelectionChange when clicking a lineation', () => {
+    const onSelectionChange = vi.fn();
+    const { container } = render(
+      <Stereonet
+        size={SIZE}
+        showLabels={false}
+        lineations={[{ id: 'l-target', point: { x: 0, y: 0 } }]}
+        onSelectionChange={onSelectionChange}
+      />,
+    );
+    const svg = container.querySelector('svg')!;
+
+    fireEvent.click(svg, { clientX: 200, clientY: 200 });
+
+    expect(onSelectionChange).toHaveBeenCalledWith({ type: 'lineation', id: 'l-target' });
+  });
+
+  it('calls onSelectionChange when clicking a great circle', () => {
+    const onSelectionChange = vi.fn();
+    const { container } = render(
+      <Stereonet
+        size={SIZE}
+        showLabels={false}
+        greatCircles={[
+          {
+            id: 'gc-target',
+            points: [
+              { x: -1, y: 0 },
+              { x: 1, y: 0 },
+            ],
+          },
+        ]}
+        onSelectionChange={onSelectionChange}
+      />,
+    );
+    const svg = container.querySelector('svg')!;
+
+    fireEvent.click(svg, { clientX: 100, clientY: 200 });
+
+    expect(onSelectionChange).toHaveBeenCalledWith({ type: 'greatCircle', id: 'gc-target' });
+  });
+
+  it('renders selected feature with data-selected attribute and distinctive styling', () => {
+    const { container, rerender } = render(
+      <Stereonet
+        size={SIZE}
+        showLabels={false}
+        poles={[{ id: 'item-1', point: { x: 0, y: 0 } }]}
+        lineations={[{ id: 'item-1', point: { x: 0.5, y: 0 } }]}
+        greatCircles={[
+          {
+            id: 'gc-1',
+            points: [
+              { x: -1, y: 0 },
+              { x: 1, y: 0 },
+            ],
+          },
+        ]}
+        selection={{ type: 'pole', id: 'item-1' }}
+      />,
+    );
+
+    const poleRect = container.querySelector('rect[data-id="item-1"]')!;
+    const linCircle = container.querySelector('circle[data-id="item-1"]')!;
+    const gcPath = container.querySelector('path[data-id="gc-1"]')!;
+
+    // Pole is selected; lineation with same id is NOT selected (type discriminator)
+    expect(poleRect.getAttribute('data-selected')).toBe('true');
+    expect(linCircle.getAttribute('data-selected')).toBeNull();
+    expect(gcPath.getAttribute('data-selected')).toBeNull();
+
+    // Rerender with great circle selected
+    rerender(
+      <Stereonet
+        size={SIZE}
+        showLabels={false}
+        poles={[{ id: 'item-1', point: { x: 0, y: 0 } }]}
+        lineations={[{ id: 'item-1', point: { x: 0.5, y: 0 } }]}
+        greatCircles={[
+          {
+            id: 'gc-1',
+            points: [
+              { x: -1, y: 0 },
+              { x: 1, y: 0 },
+            ],
+          },
+        ]}
+        selection={{ type: 'greatCircle', id: 'gc-1' }}
+      />,
+    );
+
+    expect(poleRect.getAttribute('data-selected')).toBeNull();
+    expect(gcPath.getAttribute('data-selected')).toBe('true');
+  });
+});
+
+describe('viewport bounding client rect offset robustness', () => {
+  it('correctly maps pointer coordinates when SVG is offset from the viewport origin', () => {
+    const onCursorMove = vi.fn();
+    const { container } = render(
+      <Stereonet size={400} showLabels={false} onCursorMove={onCursorMove} />,
+    );
+    const svg = container.querySelector('svg')!;
+
+    // Mock getBoundingClientRect with non-zero top-left offset
+    vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue({
+      left: 100,
+      top: 50,
+      width: 400,
+      height: 400,
+      right: 500,
+      bottom: 450,
+      x: 100,
+      y: 50,
+      toJSON: () => {},
+    });
+
+    // clientX = 100 + 200 = 300, clientY = 50 + 200 = 250 -> Center of 400x400 SVG
+    fireEvent.pointerMove(svg, { clientX: 300, clientY: 250 });
+
+    expect(onCursorMove).toHaveBeenCalledTimes(1);
+    const cursor = onCursorMove.mock.calls[0][0];
+    expect(cursor).not.toBeNull();
+    expect(cursor.x).toBeCloseTo(0, 4);
+    expect(cursor.y).toBeCloseTo(0, 4);
+    expect(cursor.trend).toBeCloseTo(0, 4);
+    expect(cursor.plunge).toBeCloseTo(90, 4);
   });
 });

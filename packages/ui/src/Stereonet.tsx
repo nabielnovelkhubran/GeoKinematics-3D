@@ -1,5 +1,6 @@
 import React from 'react';
 import type { StereonetPoint } from '@geokinematics/domain';
+import { unprojectLine } from '@geokinematics/geometry';
 import type {
   StereonetCursor,
   StereonetFeature,
@@ -36,38 +37,37 @@ export interface StereonetProps {
   /**
    * The currently selected feature, or `null` for no selection.
    * Controlled prop — the parent is responsible for state management.
-   *
-   * Selection semantics:
-   *   - Selecting an unselected feature:      null → feature A
-   *   - Selecting a different feature:        feature A → feature B
-   *   - Deselecting the current feature:      feature A → null
-   *     (deselect behavior is implemented by the pointer interaction layer.)
    */
   selection?: StereonetSelection | null;
 
   /**
    * Called when the user selects or deselects a feature.
    * Receives the newly selected feature, or `null` when deselected.
-   * Pointer interaction is not yet implemented; this prop defines the contract.
    */
   onSelectionChange?: (selection: StereonetSelection | null) => void;
 
   /**
    * Called when the pointer enters or leaves a feature.
    * Receives the hovered feature, or `null` when leaving a feature.
-   * Pointer interaction is not yet implemented; this prop defines the contract.
    */
   onHover?: (feature: StereonetFeature | null) => void;
 
   /**
    * Called as the pointer moves across the stereonet surface.
    * Receives the current normalized stereonet coordinate and its geological
-   * orientation (via inverse Wulff projection in \`@geokinematics/geometry\`),
+   * orientation (via inverse Wulff projection in `@geokinematics/geometry`),
    * or `null` when the pointer leaves the stereonet boundary.
-   * Pointer interaction is not yet implemented; this prop defines the contract.
    */
   onCursorMove?: (cursor: StereonetCursor | null) => void;
 }
+
+// ── Interaction constants ───────────────────────────────────────────────────
+
+/** Interaction hit-testing radius in SVG units for point features (poles/lineations). */
+export const POINT_HIT_RADIUS_SVG = 8;
+
+/** Interaction hit-testing radius in SVG units for great-circle paths. */
+export const GREAT_CIRCLE_HIT_RADIUS_SVG = 6;
 
 /**
  * Applies the visualization-only linear transform from stereonet coordinates
@@ -87,6 +87,123 @@ function fmt(n: number): string {
   return n.toFixed(4);
 }
 
+/** Computes the shortest distance from point (px, py) to segment (x1, y1)-(x2, y2). */
+function pointToSegmentDistance(
+  px: number,
+  py: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): number {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(px - x1, py - y1);
+  const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / lenSq));
+  const projX = x1 + t * dx;
+  const projY = y1 + t * dy;
+  return Math.hypot(px - projX, py - projY);
+}
+
+/**
+ * Deterministic hit-testing helper.
+ * Priority order:
+ *   1. Poles & lineations (point features have precedence)
+ *   2. Great circles
+ */
+function findHitFeature(
+  svgX: number,
+  svgY: number,
+  center: number,
+  radius: number,
+  poles: readonly StereonetPole[],
+  lineations: readonly StereonetLineation[],
+  greatCircles: readonly StereonetGreatCircle[],
+): StereonetFeature | null {
+  let closestPointDist = Infinity;
+  let hitPointFeature: StereonetFeature | null = null;
+
+  // 1. Poles
+  for (const pole of poles) {
+    const pt = toSvg(pole.point, center, radius);
+    const dist = Math.hypot(svgX - pt.x, svgY - pt.y);
+    if (dist <= POINT_HIT_RADIUS_SVG && dist < closestPointDist) {
+      closestPointDist = dist;
+      hitPointFeature = { type: 'pole', id: pole.id };
+    }
+  }
+
+  // 2. Lineations
+  for (const lin of lineations) {
+    const pt = toSvg(lin.point, center, radius);
+    const dist = Math.hypot(svgX - pt.x, svgY - pt.y);
+    if (dist <= POINT_HIT_RADIUS_SVG && dist < closestPointDist) {
+      closestPointDist = dist;
+      hitPointFeature = { type: 'lineation', id: lin.id };
+    }
+  }
+
+  if (hitPointFeature) {
+    return hitPointFeature;
+  }
+
+  // 3. Great circles
+  let closestGcDist = Infinity;
+  let hitGcFeature: StereonetFeature | null = null;
+
+  for (const gc of greatCircles) {
+    if (gc.points.length === 1) {
+      const p = toSvg(gc.points[0], center, radius);
+      const dist = Math.hypot(svgX - p.x, svgY - p.y);
+      if (dist <= GREAT_CIRCLE_HIT_RADIUS_SVG && dist < closestGcDist) {
+        closestGcDist = dist;
+        hitGcFeature = { type: 'greatCircle', id: gc.id };
+      }
+    } else if (gc.points.length > 1) {
+      for (let i = 0; i < gc.points.length - 1; i++) {
+        const p1 = toSvg(gc.points[i], center, radius);
+        const p2 = toSvg(gc.points[i + 1], center, radius);
+        const dist = pointToSegmentDistance(svgX, svgY, p1.x, p1.y, p2.x, p2.y);
+        if (dist <= GREAT_CIRCLE_HIT_RADIUS_SVG && dist < closestGcDist) {
+          closestGcDist = dist;
+          hitGcFeature = { type: 'greatCircle', id: gc.id };
+        }
+      }
+    }
+  }
+
+  return hitGcFeature;
+}
+
+function isFeatureSelected(
+  feature: { type: 'pole' | 'lineation' | 'greatCircle'; id: string },
+  selection: StereonetSelection | null | undefined,
+): boolean {
+  return (
+    selection !== null &&
+    selection !== undefined &&
+    selection.type === feature.type &&
+    selection.id === feature.id
+  );
+}
+
+function getSvgCoordinates(
+  e: React.PointerEvent<SVGSVGElement> | React.MouseEvent<SVGSVGElement>,
+  svgElement: SVGSVGElement | null,
+  size: number,
+): { svgX: number; svgY: number } | null {
+  if (!svgElement) return null;
+  const rect = svgElement.getBoundingClientRect();
+  const width = rect.width || size;
+  const height = rect.height || size;
+  const left = rect.left || 0;
+  const top = rect.top || 0;
+  const svgX = ((e.clientX - left) / width) * size;
+  const svgY = ((e.clientY - top) / height) * size;
+  return { svgX, svgY };
+}
+
 /**
  * Reusable SVG stereonet visualization component.
  *
@@ -102,10 +219,65 @@ export function Stereonet({
   lineations = [],
   poles = [],
   greatCircles = [],
+  selection = null,
+  onSelectionChange,
+  onHover,
+  onCursorMove,
 }: StereonetProps): React.ReactElement {
+  const svgRef = React.useRef<SVGSVGElement>(null);
   const labelPad = showLabels ? 24 : 10;
   const radius = (size - labelPad * 2) / 2;
   const center = size / 2;
+
+  const handlePointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const coords = getSvgCoordinates(e, svgRef.current, size);
+    if (!coords) return;
+    const { svgX, svgY } = coords;
+    const sx = (svgX - center) / radius;
+    const sy = (center - svgY) / radius;
+    const dist = Math.hypot(sx, sy);
+
+    if (dist <= 1) {
+      try {
+        const orientation = unprojectLine({ x: sx, y: sy });
+        onCursorMove?.({
+          x: sx,
+          y: sy,
+          trend: orientation.trend,
+          plunge: orientation.plunge,
+        });
+      } catch {
+        onCursorMove?.(null);
+      }
+    } else {
+      onCursorMove?.(null);
+    }
+
+    const hit = findHitFeature(svgX, svgY, center, radius, poles, lineations, greatCircles);
+    onHover?.(hit);
+  };
+
+  const handlePointerLeave = () => {
+    onCursorMove?.(null);
+    onHover?.(null);
+  };
+
+  const handleClick = (e: React.PointerEvent<SVGSVGElement> | React.MouseEvent<SVGSVGElement>) => {
+    const coords = getSvgCoordinates(e, svgRef.current, size);
+    if (!coords) return;
+    const hit = findHitFeature(
+      coords.svgX,
+      coords.svgY,
+      center,
+      radius,
+      poles,
+      lineations,
+      greatCircles,
+    );
+    if (hit) {
+      onSelectionChange?.(hit);
+    }
+  };
 
   // ── Wulff grid ──────────────────────────────────────────────────────────────
   // The Wulff net consists of:
@@ -146,33 +318,7 @@ export function Stereonet({
       // A Wulff meridian at angle `deg` from N–S has its arc radius = R/sin(deg)
       // and is centred on the E–W axis at offset ±R/tan(deg) from centre.
       const mArcR = radius / Math.sin(rad);
-      const mOffset = radius / Math.tan(rad);
 
-      // Eastern meridian (curves through E half)
-      const mEcx = fmt(center + mOffset);
-      const mArcRf = fmt(mArcR);
-      const Ny = fmt(center - radius);
-      const Sy = fmt(center + radius);
-      const cx = fmt(center);
-
-      gridLines.push(
-        <path
-          key={`mer-e-${deg}`}
-          d={`M ${cx} ${Ny} A ${mArcRf} ${mArcRf} 0 0 1 ${cx} ${Sy}`}
-          fill="none"
-          stroke="#d0d0d0"
-          strokeWidth={0.75}
-          transform={`rotate(0, ${cx}, ${fmt(center)})`}
-          // Use the circle centred at (center+mOffset, center) passing through N and S
-          data-wulff-meridian={deg}
-        />,
-      );
-      // Derive the arc using the actual centre offset trick with a dummy transform:
-      // Recompute with explicit endpoints and the correct arc centre.
-      // SVG A command: `A rx ry x-rotation large-arc-flag sweep-flag x y`
-      // The meridian arc passes through N(center, center-R) and S(center, center+R),
-      // centred at (center ± R/tan(deg), center).
-      gridLines.pop(); // remove placeholder above
       gridLines.push(
         <path
           key={`mer-e-${deg}`}
@@ -191,25 +337,6 @@ export function Stereonet({
       );
 
       // ── Parallels ────────────────────────────────────────────────────────
-      // A Wulff parallel at dip angle `deg` from horizontal has:
-      //   arc radius = R/cos(deg)
-      //   end-points at (±R·sin(deg), 0) relative to centre
-      //   centred at (0, ±R/tan(deg)) — but we use horizontal arcs:
-      //   The parallel sits at y = ±R·sin(deg) from centre (no — Wulff parallels
-      //   are arcs of circles, not horizontal lines).
-      //
-      // In the Wulff projection, the small circle at dip `d` from the primitive
-      // is an arc of radius r = R·tan(90°-d/2)·… Actually the standard formula:
-      //   The parallel at angular distance `deg` from N on the stereonet is an arc
-      //   of a circle with:
-      //     cx = center,   cy = center ± R/sin(deg)   [two arcs, one above, one below]
-      //     arc radius = R/sin(deg)
-      //   connecting from W-point to E-point at that latitude.
-      //
-      // W-point: x = center - R·cos(deg), y = center
-      // E-point: x = center + R·cos(deg), y = center
-      // Upper arc centre: (center, center - R/sin(deg))
-      // Lower arc centre: (center, center + R/sin(deg))
       const pArcR = radius / Math.sin(rad);
       const pHalfWidth = radius * Math.cos(rad);
 
@@ -272,21 +399,39 @@ export function Stereonet({
         return `${j === 0 ? 'M' : 'L'} ${fmt(pt.x)} ${fmt(pt.y)}`;
       })
       .join(' ');
-    return <path key={gc.id} d={d} fill="none" stroke="#cc2200" strokeWidth={1.5} />;
+    const isSelected = isFeatureSelected({ type: 'greatCircle', id: gc.id }, selection);
+    return (
+      <path
+        key={gc.id}
+        data-id={gc.id}
+        data-type="greatCircle"
+        data-selected={isSelected ? 'true' : undefined}
+        aria-selected={isSelected ? true : undefined}
+        d={d}
+        fill="none"
+        stroke={isSelected ? '#f59e0b' : '#cc2200'}
+        strokeWidth={isSelected ? 3 : 1.5}
+      />
+    );
   });
 
   // ── Lineation markers ────────────────────────────────────────────────────────
   const lineationMarkers = lineations.map((lineation) => {
     const pt = toSvg(lineation.point, center, radius);
+    const isSelected = isFeatureSelected({ type: 'lineation', id: lineation.id }, selection);
     return (
       <circle
         key={lineation.id}
+        data-id={lineation.id}
+        data-type="lineation"
+        data-selected={isSelected ? 'true' : undefined}
+        aria-selected={isSelected ? true : undefined}
         cx={fmt(pt.x)}
         cy={fmt(pt.y)}
         r={4}
         fill="#1a56db"
-        stroke="#fff"
-        strokeWidth={0.75}
+        stroke={isSelected ? '#f59e0b' : '#fff'}
+        strokeWidth={isSelected ? 2.5 : 0.75}
       />
     );
   });
@@ -295,16 +440,21 @@ export function Stereonet({
   const poleMarkers = poles.map((pole) => {
     const pt = toSvg(pole.point, center, radius);
     const half = 4;
+    const isSelected = isFeatureSelected({ type: 'pole', id: pole.id }, selection);
     return (
       <rect
         key={pole.id}
+        data-id={pole.id}
+        data-type="pole"
+        data-selected={isSelected ? 'true' : undefined}
+        aria-selected={isSelected ? true : undefined}
         x={fmt(pt.x - half)}
         y={fmt(pt.y - half)}
         width={half * 2}
         height={half * 2}
         fill="#15803d"
-        stroke="#fff"
-        strokeWidth={0.75}
+        stroke={isSelected ? '#f59e0b' : '#fff'}
+        strokeWidth={isSelected ? 2.5 : 0.75}
       />
     );
   });
@@ -316,7 +466,16 @@ export function Stereonet({
   const degFontSize = 9;
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-label="stereonet">
+    <svg
+      ref={svgRef}
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      aria-label="stereonet"
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
+      onClick={handleClick}
+    >
       {/* Primitive circle background */}
       <circle
         data-testid="primitive-circle"

@@ -20,6 +20,7 @@
     "jsdom": "^30.0.1"
   },
   "dependencies": {
-    "@geokinematics/domain": "workspace:*"
+    "@geokinematics/domain": "workspace:*",
+    "@geokinematics/geometry": "workspace:*"
   }
 }
