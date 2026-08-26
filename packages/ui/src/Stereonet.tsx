@@ -1,5 +1,13 @@
 import React from 'react';
 import type { StereonetPoint } from '@geokinematics/domain';
+import type {
+  StereonetCursor,
+  StereonetFeature,
+  StereonetGreatCircle,
+  StereonetLineation,
+  StereonetPole,
+  StereonetSelection,
+} from './stereonet-types';
 
 export interface StereonetProps {
   /** SVG canvas size in pixels. Defaults to 400. */
@@ -13,15 +21,52 @@ export interface StereonetProps {
   showGrid?: boolean;
   /** Whether to render the N/E/S/W cardinal and degree labels. Defaults to true. */
   showLabels?: boolean;
-  /** Pre-projected lineation points to plot as filled circles. */
-  lineations?: StereonetPoint[];
-  /** Pre-projected pole points to plot as filled squares. */
-  poles?: StereonetPoint[];
+  /** Pre-projected lineation features to plot as filled circles. */
+  lineations?: StereonetLineation[];
+  /** Pre-projected pole features to plot as filled squares. */
+  poles?: StereonetPole[];
   /**
-   * Pre-projected great circle paths. Each entry is an ordered array of
-   * StereonetPoint values defining one great-circle trace.
+   * Pre-projected great-circle features. Each entry carries a stable id and
+   * an ordered array of StereonetPoint values defining one great-circle trace.
    */
-  greatCircles?: StereonetPoint[][];
+  greatCircles?: StereonetGreatCircle[];
+
+  // ── Interaction contract ────────────────────────────────────────────────
+
+  /**
+   * The currently selected feature, or `null` for no selection.
+   * Controlled prop — the parent is responsible for state management.
+   *
+   * Selection semantics:
+   *   - Selecting an unselected feature:      null → feature A
+   *   - Selecting a different feature:        feature A → feature B
+   *   - Deselecting the current feature:      feature A → null
+   *     (deselect behavior is implemented by the pointer interaction layer.)
+   */
+  selection?: StereonetSelection | null;
+
+  /**
+   * Called when the user selects or deselects a feature.
+   * Receives the newly selected feature, or `null` when deselected.
+   * Pointer interaction is not yet implemented; this prop defines the contract.
+   */
+  onSelectionChange?: (selection: StereonetSelection | null) => void;
+
+  /**
+   * Called when the pointer enters or leaves a feature.
+   * Receives the hovered feature, or `null` when leaving a feature.
+   * Pointer interaction is not yet implemented; this prop defines the contract.
+   */
+  onHover?: (feature: StereonetFeature | null) => void;
+
+  /**
+   * Called as the pointer moves across the stereonet surface.
+   * Receives the current normalized stereonet coordinate and its geological
+   * orientation (via inverse Wulff projection in \`@geokinematics/geometry\`),
+   * or `null` when the pointer leaves the stereonet boundary.
+   * Pointer interaction is not yet implemented; this prop defines the contract.
+   */
+  onCursorMove?: (cursor: StereonetCursor | null) => void;
 }
 
 /**
@@ -219,23 +264,23 @@ export function Stereonet({
   }
 
   // ── Great circles ────────────────────────────────────────────────────────────
-  const gcPaths = greatCircles.map((gc, i) => {
-    if (gc.length === 0) return null;
-    const d = gc
+  const gcPaths = greatCircles.map((gc) => {
+    if (gc.points.length === 0) return null;
+    const d = gc.points
       .map((p, j) => {
         const pt = toSvg(p, center, radius);
         return `${j === 0 ? 'M' : 'L'} ${fmt(pt.x)} ${fmt(pt.y)}`;
       })
       .join(' ');
-    return <path key={i} d={d} fill="none" stroke="#cc2200" strokeWidth={1.5} />;
+    return <path key={gc.id} d={d} fill="none" stroke="#cc2200" strokeWidth={1.5} />;
   });
 
   // ── Lineation markers ────────────────────────────────────────────────────────
-  const lineationMarkers = lineations.map((p, i) => {
-    const pt = toSvg(p, center, radius);
+  const lineationMarkers = lineations.map((lineation) => {
+    const pt = toSvg(lineation.point, center, radius);
     return (
       <circle
-        key={i}
+        key={lineation.id}
         cx={fmt(pt.x)}
         cy={fmt(pt.y)}
         r={4}
@@ -247,12 +292,12 @@ export function Stereonet({
   });
 
   // ── Pole markers ─────────────────────────────────────────────────────────────
-  const poleMarkers = poles.map((p, i) => {
-    const pt = toSvg(p, center, radius);
+  const poleMarkers = poles.map((pole) => {
+    const pt = toSvg(pole.point, center, radius);
     const half = 4;
     return (
       <rect
-        key={i}
+        key={pole.id}
         x={fmt(pt.x - half)}
         y={fmt(pt.y - half)}
         width={half * 2}
