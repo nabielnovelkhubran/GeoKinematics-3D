@@ -19,6 +19,6 @@ jobs:
           components: rustfmt, clippy
           targets: wasm32-unknown-unknown
       - run: cargo install wasm-pack --locked
-      - run: pnpm install --frozen-lockfile --allow-scripts=esbuild,sharp,unrs-resolver
+      - run: pnpm install --frozen-lockfile --allow-scripts
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm verify
