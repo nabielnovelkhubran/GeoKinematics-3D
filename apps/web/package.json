@@ -11,6 +11,9 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@geokinematics/domain": "workspace:*",
+    "@geokinematics/geometry": "workspace:*",
+    "@geokinematics/ui": "workspace:*",
     "next": "^15.5.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

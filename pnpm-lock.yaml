@@ -37,6 +37,15 @@ importers:
 
   apps/web:
     dependencies:
+      '@geokinematics/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@geokinematics/geometry':
+        specifier: workspace:*
+        version: link:../../packages/geometry
+      '@geokinematics/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       next:
         specifier: ^15.5.2
         version: 15.5.23(@playwright/test@1.62.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
