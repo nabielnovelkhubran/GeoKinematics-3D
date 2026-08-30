@@ -1,8 +1,11 @@
+<div align="center">
+  <img src="./docs/assets/GeoKinematics-3D (Transparent).png" alt="Logo" width="200" />
+</div>
 # GeoKinematics-3D
 
 Browser-based software for rock-slope kinematic analysis, combining geological geometry, stereonet mathematics, 3D visualization, and Rust/WASM computation.
 
-> **Status:** Phase 1C complete · Phase 1D in progress
+> **Status:** Phase 1 complete · Phase 2A.1 complete
 
 ## Current state
 
@@ -18,23 +21,28 @@ Implemented so far:
 - Wulff lower-hemisphere equal-angle projection
 - Lineation and plane-pole projection
 - Plane great-circle generation
+- Small-circle projection geometry
+- Downward line direction canonicalization
+- Slope face and friction angle domain types
+- Dedicated kinematic angular tolerance
 - Rust/WASM computation boundary
-- React/SVG stereonet visualization foundation
+- React/SVG interactive stereonet visualization and workspace inspector
 
-Higher-level kinematic analysis is not implemented yet.
+Kinematic evaluation algorithms (planar, wedge, toppling) and slope configuration UI are not implemented yet.
 
 ## Roadmap
 
-| Phase | Description                         | Status      |
-| ----- | ----------------------------------- | ----------- |
-| 0.1   | Repository architecture and tooling | Complete    |
-| 1A    | Coordinate and orientation contract | Complete    |
-| 1B    | Vector and plane mathematics        | Complete    |
-| 1C    | Stereonet mathematics               | Complete    |
-| 1D    | Stereonet visualization             | In progress |
-| 2     | Kinematic analysis                  | Planned     |
-| 3     | Interactive 3D geological workspace | Planned     |
-| 4     | Limit-equilibrium analysis          | Planned     |
+| Phase | Description                         | Status   |
+| ----- | ----------------------------------- | -------- |
+| 0.1   | Repository architecture and tooling | Complete |
+| 1A    | Coordinate and orientation contract | Complete |
+| 1B    | Vector and plane mathematics        | Complete |
+| 1C    | Stereonet mathematics               | Complete |
+| 1D    | Stereonet visualization             | Complete |
+| 2A.1  | Domain & geometry envelopes         | Complete |
+| 2A.2+ | Kinematic analysis                  | Planned  |
+| 3     | Interactive 3D geological workspace | Planned  |
+| 4     | Limit-equilibrium analysis          | Planned  |
 
 ---
 
@@ -333,20 +341,21 @@ docs/decisions/ADR-008-stereonet-projection.md
 - [x] Wulff projection
 - [x] Line and pole projection
 - [x] Great-circle generation
-- [ ] Stereonet visualization
-- [ ] Interactive stereonet controls
+- [x] Stereonet visualization
+- [x] Interactive stereonet controls
 
 ### Phase 2 | Kinematic analysis
 
-Planned analysis includes:
-
-- [ ] Planar sliding
-- [ ] Wedge sliding
-- [ ] Direct toppling
-- [ ] Kinematic admissibility
-- [ ] Friction-angle constraints
-- [ ] Daylighting checks
-- [ ] Critical-plane identification
+- [x] Domain types: `SlopeFace` and `FrictionAngle` (Phase 2A.1)
+- [x] Small-circle projection geometry (Phase 2A.1)
+- [x] Downward line direction canonicalization (Phase 2A.1)
+- [x] Kinematic angular tolerance definition (Phase 2A.1)
+- [ ] Planar sliding (Phase 2A.2+)
+- [ ] Wedge sliding (Phase 2A.2+)
+- [ ] Direct toppling (Phase 2A.2+)
+- [ ] Kinematic admissibility (Phase 2A.2+)
+- [ ] Friction-angle constraints & daylight envelopes (Phase 2A.2+)
+- [ ] Critical-plane identification (Phase 2A.2+)
 
 ### Phase 3 | 3D geological workspace
 

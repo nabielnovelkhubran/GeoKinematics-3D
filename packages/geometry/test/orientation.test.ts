@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CANONICAL_EPSILON,
   ENU_BASIS,
+  KINEMATIC_ANGULAR_TOLERANCE,
   canonicalizeNormal,
   canonicalizePlaneOrientation,
   normalizeAzimuth,
@@ -122,5 +123,10 @@ describe('orientation contract', () => {
 
   it('uses a small documented tolerance for canonicalization', () => {
     expect(CANONICAL_EPSILON).toBeGreaterThan(0);
+  });
+
+  it('defines a dedicated angular tolerance for kinematic boundary classification', () => {
+    expect(KINEMATIC_ANGULAR_TOLERANCE).toBe(1e-6);
+    expect(KINEMATIC_ANGULAR_TOLERANCE).toBeGreaterThan(CANONICAL_EPSILON);
   });
 });

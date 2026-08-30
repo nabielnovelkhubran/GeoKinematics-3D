@@ -40,3 +40,17 @@ export interface StereonetPoint {
   readonly x: number;
   readonly y: number;
 }
+
+/**
+ * The orientation of a slope face, expressed as its downward dip direction and
+ * dip angle. Both values are decimal degrees.
+ */
+export interface SlopeFace {
+  readonly dipDirection: Degrees;
+  readonly dip: Degrees;
+}
+
+/**
+ * A friction angle in decimal degrees.
+ */
+export type FrictionAngle = Degrees;

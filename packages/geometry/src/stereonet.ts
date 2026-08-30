@@ -1,4 +1,5 @@
 import type {
+  Degrees,
   LineOrientation,
   PlaneOrientation,
   StereonetPoint,
@@ -6,7 +7,7 @@ import type {
 } from '@geokinematics/domain';
 import { degreesToRadians, normalizeAzimuth, radiansToDegrees } from './angle';
 import { CANONICAL_EPSILON } from './tolerance';
-import { vec3Add, vec3Scale, vec3Normalize } from './vector';
+import { vec3Add, vec3Scale, vec3Normalize, vec3Negate } from './vector';
 import {
   normalizePlaneOrientation,
   planeStrikeVector,
@@ -16,6 +17,14 @@ import {
 
 function assertFinite(value: number, label: string): void {
   if (!Number.isFinite(value)) throw new RangeError(`${label} must be finite.`);
+}
+
+function zeroSmallComponents(vector: Vector3): Vector3 {
+  return {
+    x: Math.abs(vector.x) <= CANONICAL_EPSILON ? 0 : vector.x,
+    y: Math.abs(vector.y) <= CANONICAL_EPSILON ? 0 : vector.y,
+    z: Math.abs(vector.z) <= CANONICAL_EPSILON ? 0 : vector.z,
+  };
 }
 
 /**
@@ -62,6 +71,26 @@ export function lineOrientationFromVector(vector: Vector3): LineOrientation {
   const plunge = plungeRaw === 0 ? 0 : plungeRaw;
   const trend = normalizeAzimuth(radiansToDegrees(Math.atan2(v.x, v.y)));
   return { trend, plunge };
+}
+
+/**
+ * Returns the unit vector in the downward-plunging direction of a line.
+ *
+ * If the vector has an upward vertical component (z > CANONICAL_EPSILON), it is negated.
+ * For horizontal lines (|z| <= CANONICAL_EPSILON), deterministic tie-breaking is applied:
+ * prefer x > 0; when x is approximately zero prefer y >= 0.
+ *
+ * @throws {RangeError} if the vector is near-zero (magnitude <= CANONICAL_EPSILON).
+ */
+export function selectDownwardDirection(vector: Vector3): Vector3 {
+  const normalized = vec3Normalize(vector); // throws for near-zero
+  const isUpwardOrNegativeTieBreak =
+    normalized.z > CANONICAL_EPSILON ||
+    (Math.abs(normalized.z) <= CANONICAL_EPSILON && normalized.x < -CANONICAL_EPSILON) ||
+    (Math.abs(normalized.z) <= CANONICAL_EPSILON &&
+      Math.abs(normalized.x) <= CANONICAL_EPSILON &&
+      normalized.y < 0);
+  return zeroSmallComponents(isUpwardOrNegativeTieBreak ? vec3Negate(normalized) : normalized);
 }
 
 /**
@@ -140,6 +169,35 @@ export function projectPlaneGreatCircle(
     const theta = (i / segments) * limit;
     const v = vec3Add(vec3Scale(S, Math.cos(theta)), vec3Scale(D, Math.sin(theta)));
     points.push(projectLine(lineOrientationFromVector(v)));
+  }
+
+  return points;
+}
+
+/**
+ * Generates points tracing the small-circle projection of a constant plunge on a Wulff net.
+ *
+ * @param plunge Geological plunge in decimal degrees [0°, 90°].
+ * @param segments Number of angular subdivisions (default 180). Must be a positive integer.
+ * @returns An ordered array of pre-projected `StereonetPoint` coordinates forming a closed loop.
+ * @throws {RangeError} if plunge is not in [0°, 90°] or segments is not a positive integer.
+ */
+export function projectSmallCircle(
+  plunge: Degrees,
+  segments: number = 180,
+): readonly StereonetPoint[] {
+  assertFinite(plunge, 'Plunge');
+  if (plunge < 0 || plunge > 90) {
+    throw new RangeError('Plunge must be within [0°, 90°].');
+  }
+  if (!Number.isInteger(segments) || segments < 1) {
+    throw new RangeError('Segments must be a positive integer.');
+  }
+
+  const points: StereonetPoint[] = [];
+  for (let i = 0; i <= segments; i++) {
+    const trend = (i / segments) * 360;
+    points.push(projectLine({ trend, plunge }));
   }
 
   return points;

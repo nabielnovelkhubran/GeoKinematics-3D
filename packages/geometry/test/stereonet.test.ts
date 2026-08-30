@@ -11,10 +11,12 @@ import {
   normalizeLineOrientation,
   lineVectorFromOrientation,
   lineOrientationFromVector,
+  selectDownwardDirection,
   projectLine,
   unprojectLine,
   projectPlanePole,
   projectPlaneGreatCircle,
+  projectSmallCircle,
 } from '../src/stereonet';
 
 function expectPointCloseTo(actual: StereonetPoint, expected: StereonetPoint) {
@@ -234,6 +236,175 @@ describe('Stereonet Mathematics & Projection', () => {
       expect(() => projectPlaneGreatCircle({ dipDirection: 0, dip: 45 }, -1)).toThrow(RangeError);
       expect(() => projectPlaneGreatCircle({ dipDirection: 0, dip: 45 }, 1.5)).toThrow(RangeError);
       expect(() => projectPlaneGreatCircle({ dipDirection: NaN, dip: 45 })).toThrow(RangeError);
+    });
+  });
+
+  describe('SELECT DOWNWARD DIRECTION', () => {
+    test('clearly upward vector is negated to downward', () => {
+      const v = { x: 0, y: 0, z: 1 };
+      const downward = selectDownwardDirection(v);
+      expectVectorCloseTo(downward, { x: 0, y: 0, z: -1 });
+      expect(vec3IsUnit(downward)).toBe(true);
+    });
+
+    test('clearly downward vector is preserved', () => {
+      const v = { x: 0, y: 0, z: -1 };
+      const downward = selectDownwardDirection(v);
+      expectVectorCloseTo(downward, { x: 0, y: 0, z: -1 });
+      expect(vec3IsUnit(downward)).toBe(true);
+    });
+
+    test('oblique upward vector is normalized and negated to downward', () => {
+      const v = { x: 1, y: 2, z: 3 };
+      const downward = selectDownwardDirection(v);
+      const len = Math.hypot(1, 2, 3);
+      expectVectorCloseTo(downward, { x: -1 / len, y: -2 / len, z: -3 / len });
+      expect(downward.z).toBeLessThan(0);
+      expect(vec3IsUnit(downward)).toBe(true);
+    });
+
+    test('oblique downward vector is normalized and preserved as downward', () => {
+      const v = { x: 1, y: 2, z: -3 };
+      const downward = selectDownwardDirection(v);
+      const len = Math.hypot(1, 2, 3);
+      expectVectorCloseTo(downward, { x: 1 / len, y: 2 / len, z: -3 / len });
+      expect(downward.z).toBeLessThan(0);
+      expect(vec3IsUnit(downward)).toBe(true);
+    });
+
+    test('horizontal vector tie-breaking: prefer x > 0', () => {
+      // East (x = 1) -> preserved
+      const east = selectDownwardDirection({ x: 1, y: 0, z: 0 });
+      expectVectorCloseTo(east, { x: 1, y: 0, z: 0 });
+
+      // West (x = -1) -> negated to East
+      const west = selectDownwardDirection({ x: -1, y: 0, z: 0 });
+      expectVectorCloseTo(west, { x: 1, y: 0, z: 0 });
+    });
+
+    test('horizontal vector tie-breaking: when x = 0, prefer y >= 0', () => {
+      // North (y = 1) -> preserved
+      const north = selectDownwardDirection({ x: 0, y: 1, z: 0 });
+      expectVectorCloseTo(north, { x: 0, y: 1, z: 0 });
+
+      // South (y = -1) -> negated to North
+      const south = selectDownwardDirection({ x: 0, y: -1, z: 0 });
+      expectVectorCloseTo(south, { x: 0, y: 1, z: 0 });
+    });
+
+    test('zeroes small components within CANONICAL_EPSILON', () => {
+      const v = { x: CANONICAL_EPSILON / 2, y: 1, z: -CANONICAL_EPSILON / 2 };
+      const downward = selectDownwardDirection(v);
+      expect(downward.x).toBe(0);
+      expect(downward.y).toBe(1);
+      expect(downward.z).toBe(0);
+    });
+
+    test('throws RangeError for near-zero vector', () => {
+      expect(() => selectDownwardDirection({ x: 0, y: 0, z: 0 })).toThrow(RangeError);
+      expect(() => selectDownwardDirection({ x: CANONICAL_EPSILON / 2, y: 0, z: 0 })).toThrow(
+        RangeError,
+      );
+    });
+
+    test('integration: downward direction always passes lineOrientationFromVector without error', () => {
+      const testVectors: Vector3[] = [
+        { x: 0, y: 0, z: 1 },
+        { x: 0, y: 0, z: -1 },
+        { x: 3, y: -4, z: 5 },
+        { x: -3, y: 4, z: -5 },
+        { x: 1, y: 0, z: 0 },
+        { x: -1, y: 0, z: 0 },
+        { x: 0, y: 1, z: 0 },
+        { x: 0, y: -1, z: 0 },
+      ];
+
+      for (const v of testVectors) {
+        const downward = selectDownwardDirection(v);
+        expect(() => {
+          const orientation = lineOrientationFromVector(downward);
+          expect(orientation.plunge).toBeGreaterThanOrEqual(0);
+          expect(orientation.plunge).toBeLessThanOrEqual(90);
+          expect(orientation.trend).toBeGreaterThanOrEqual(0);
+          expect(orientation.trend).toBeLessThan(360);
+        }).not.toThrow();
+      }
+    });
+  });
+
+  describe('SMALL CIRCLES', () => {
+    test('horizontal small circle (plunge = 0°) traces the rim at r = 1', () => {
+      const points = projectSmallCircle(0, 4);
+      expect(points.length).toBe(5);
+
+      for (const p of points) {
+        expect(Math.hypot(p.x, p.y)).toBeCloseTo(1, 10);
+      }
+
+      // First and last point coincide
+      expectPointCloseTo(points[0], points[4]);
+      // Cardinal points: N (0, 1), E (1, 0), S (0, -1), W (-1, 0), N (0, 1)
+      expectPointCloseTo(points[0], { x: 0, y: 1 });
+      expectPointCloseTo(points[1], { x: 1, y: 0 });
+      expectPointCloseTo(points[2], { x: 0, y: -1 });
+      expectPointCloseTo(points[3], { x: -1, y: 0 });
+      expectPointCloseTo(points[4], { x: 0, y: 1 });
+    });
+
+    test('vertical small circle (plunge = 90°) collapses to the center (0, 0)', () => {
+      const points = projectSmallCircle(90, 8);
+      expect(points.length).toBe(9);
+
+      for (const p of points) {
+        expectPointCloseTo(p, { x: 0, y: 0 });
+      }
+    });
+
+    test('oblique small circle (plunge = 45°) has radius tan(π/8)', () => {
+      const expectedRadius = Math.tan(Math.PI / 8);
+      const points = projectSmallCircle(45, 12);
+      expect(points.length).toBe(13);
+
+      for (const p of points) {
+        expect(Math.hypot(p.x, p.y)).toBeCloseTo(expectedRadius, 10);
+      }
+
+      expectPointCloseTo(points[0], points[12]);
+    });
+
+    test('round trip: unprojecting points recovers original plunge', () => {
+      const testPlunges = [15, 30, 45, 60, 75];
+      for (const plunge of testPlunges) {
+        const points = projectSmallCircle(plunge, 8);
+        for (const p of points) {
+          const unproj = unprojectLine(p);
+          expect(unproj.plunge).toBeCloseTo(plunge, 10);
+        }
+      }
+    });
+
+    test('default segment count produces 181 points', () => {
+      const points = projectSmallCircle(35);
+      expect(points.length).toBe(181);
+      expectPointCloseTo(points[0], points[180]);
+    });
+
+    test('all points satisfy the unit disk invariant', () => {
+      const points = projectSmallCircle(25, 360);
+      for (const p of points) {
+        expect(Math.hypot(p.x, p.y)).toBeLessThanOrEqual(1 + CANONICAL_EPSILON);
+      }
+    });
+
+    test('validation errors on invalid plunge or segments', () => {
+      expect(() => projectSmallCircle(-1)).toThrow(RangeError);
+      expect(() => projectSmallCircle(90.1)).toThrow(RangeError);
+      expect(() => projectSmallCircle(NaN)).toThrow(RangeError);
+      expect(() => projectSmallCircle(Infinity)).toThrow(RangeError);
+      expect(() => projectSmallCircle(45, 0)).toThrow(RangeError);
+      expect(() => projectSmallCircle(45, -1)).toThrow(RangeError);
+      expect(() => projectSmallCircle(45, 2.5)).toThrow(RangeError);
+      expect(() => projectSmallCircle(45, NaN)).toThrow(RangeError);
     });
   });
 });
