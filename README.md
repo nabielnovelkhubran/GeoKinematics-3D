@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./docs/assets/GeoKinematics-3D (Transparent).png" alt="Logo" width="200" />
+  <img src="./docs/assets/GeoKinematics-3D.svg" alt="Logo" width="200" />
 </div>
 # GeoKinematics-3D
 
