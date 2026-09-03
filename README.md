@@ -1,6 +1,7 @@
 <div align="center">
-  <img src="./docs/assets/GeoKinematics-3D.svg" alt="Logo" width="200" />
+  <img src="./docs/assets/GeoKinematics-3D.svg" alt="Logo" width="550" />
 </div>
+
 # GeoKinematics-3D
 
 Browser-based software for rock-slope kinematic analysis, combining geological geometry, stereonet mathematics, 3D visualization, and Rust/WASM computation.
