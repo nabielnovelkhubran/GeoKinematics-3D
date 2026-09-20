@@ -99,3 +99,44 @@ Before committing a completed phase:
 3. Run the appropriate scoped checks.
 4. Run `pnpm verify`.
 5. Confirm the working tree is clean except for explicitly unrelated local files.
+
+## Documentation standard
+
+All project documentation (README, ADRs, architecture docs, science docs, contributing guides, inline comments) must follow this standard.
+
+### Voice and tone
+
+- Active voice. Technically precise.
+- Use domain-specific terms (`canonicalization`, `ENU transform`, `kinematic admissibility`, `serialization overhead`, `numerical tolerance`, `computational boundary`) where they add clarity.
+- Do not use technical terms merely to sound sophisticated. If a term would not survive oral defense to a geotechnical engineering professor, replace it.
+- Pragmatic, not promotional. Confident about what is built. Honest about what is not.
+
+### Anti-patterns
+
+Do not write:
+
+- "Thank you for your interest in contributing to..."
+- "The team takes X seriously"
+- "cutting-edge", "state-of-the-art", "seamless", "powerful", "robust"
+- Feature-stacking clauses ("combining A, B, C, D, and E")
+- Overpromised SLAs for a solo project
+- Empty redirects ("See X for more details") when you could state the fact directly
+
+### Developer Notes and Reality Checks
+
+Where useful, include short **Developer Note** or **Reality Check** sections explaining practical engineering reasons behind decisions. Examples:
+
+- Why SVG is used for the stereonet while Three.js handles 3D rendering
+- Why pure mathematical functions are kept outside React
+- Why Workers are a future execution boundary, not a premature optimization
+- Where serialization/transfer overhead becomes significant across WASM or Worker boundaries
+
+### Status discipline
+
+Use three explicit categories:
+
+- **Implemented** — code exists, tested, committed
+- **Planned** — design understood, implementation scoped for a near-term phase
+- **Architectural Direction** — desired future capability, design not finalized, not scheduled
+
+Never describe an Architectural Direction as if it is Planned or Implemented.
